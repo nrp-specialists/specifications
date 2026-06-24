@@ -18,7 +18,6 @@ Keeping the text and discussion separate means the spec stays clean and citable,
 
 | # | Specification | Status | Document | Discussion |
 |---|---|---|---|---|
-| 01 | Linked and Hierarchical Records (v1) | [OPEN] | [specs/01-linked-and-hierarchical-records](specs/01-linked-and-hierarchical-records/) | [#1](https://github.com/nrp-specialists/specifications/discussions/1) |
 | 02 | Linked and Hierarchical Records (v2) | [OPEN] | [specs/02-linked-and-hierarchical-records](specs/02-linked-and-hierarchical-records/) | [#3](https://github.com/nrp-specialists/specifications/discussions/3) |
 
 ## Contributing
