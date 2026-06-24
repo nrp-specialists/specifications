@@ -17,7 +17,7 @@ Keeping the two separate means the spec stays clean and citable, while the conve
 
 | # | Specification | Status | Document | Discussion |
 |---|---|---|---|---|
-| 01 | Linked and Hierarchical Records | Draft | [specs/01-linked-and-hierarchical-records](specs/01-linked-and-hierarchical-records/) | [hub thread](../../discussions) |
+| 01 | Linked and Hierarchical Records | Draft | [specs/01-linked-and-hierarchical-records](specs/01-linked-and-hierarchical-records/) | [hub thread](../../discussions/1) |
 
 ## Contributing
 

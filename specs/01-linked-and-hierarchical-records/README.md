@@ -4,7 +4,7 @@
 >
 > **Editor:** Miroslav Šimek (CESNET)
 > **Contributors:** Illyria Brejchová (Masaryk University), Daniel Mikšík (Masaryk University)
-> **Discussion:** see the hub thread in [Discussions](../../../../discussions)
+> **Discussion:** see the hub thread in [Discussions](../../../../discussions/1)
 > **Origin:** consolidated from [NRP-CZ Discussion #15](https://github.com/orgs/NRP-CZ/discussions/15)
 
 This document explains how CESNET Invenio repositories based on the CCMM metadata schema can support linked and hierarchical records.
@@ -297,13 +297,13 @@ Sibling record metadata will be accessible via API for both linked and hierarchi
 
 The CESNET Invenio Team analyzed the preliminary requirements of each repository and identified two main approaches. For each use case described by one of the repositories a specific implementation approach is suggested. [The analysis can be accessed here](https://gist.github.com/illyriab/85e4f41b012ce131abfaf17035e60763).
 
-It is possible to discuss your specific use case with the NRP repository system specialists (nrp.repozitare@eosc.cz) or comment on the hub thread for this specification in [Discussions](../../../../discussions).
+It is possible to discuss your specific use case with the NRP repository system specialists (nrp.repozitare@eosc.cz) or comment on the hub thread for this specification in [Discussions](../../../../discussions/1).
 
 ---
 
 ## Open questions
 
-These points were raised in the original NRP-CZ discussion and remain open for this spec. Track them in the hub thread in [Discussions](../../../../discussions).
+These points were raised in the original NRP-CZ discussion and remain open for this spec. Track them in the hub thread in [Discussions](../../../../discussions/1).
 
 - **Terminology** — should "hierarchical records" be renamed to "compound records", with main-record / sub-record / record? (raised by xulman)
 - **Schema constraints** — to what extent must a parent and its child records share the same metadata schema? They are not required to be identical, but there are technical requirements at publication time. (mesemus)
