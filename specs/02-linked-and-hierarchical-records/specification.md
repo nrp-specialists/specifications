@@ -10,21 +10,19 @@
 
 Two mechanisms for CESNET Invenio repositories (CCMM metadata schema) to relate records to one another:
 
-- **Linked records** — already supported. Records are related but independent: each can be created, published, versioned, and access-controlled separately, potentially by different authors or institutions. Implemented via the CCMM `related_resource` field, the `pid-relation` field type, and query-based collections.
+- **Linked records** — already supported. Records are related but independent: each can be created, published, versioned, and access-controlled separately, potentially by different authors or institutions. Linking can be implemented via the CCMM `related_resource` field, the `pid-relation` field type, and query-based collections.
 
 - **Hierarchical (compound) records** — not yet implemented. A single logical record split into many for performance or manageability: the root record controls publication, versioning, and access for the entire tree. Each child links upward to its single parent via system metadata.
 
-Three of the five NRP domain repositories require hierarchical records; the remaining two will use linked records.
-
 ## Terminology
 
-- **root record** — has no parent; controls lifecycle, access rights, and versioning for the entire tree.
-- **parent record** — has at least one child.
-- **child record** — has a parent; links upward to it.
+- **root record** — has no parent
+- **parent record** — has at least one child
+- **child record** — has a parent
 
 ## Linked Records — Existing Mechanisms
 
-Linked records are supported today and require no new platform development (except the same-model pid-relation fix in Section 2.2.3). Repository teams configure these mechanisms in their metadata schemas.
+Linked records are supported today and require no new development (except the same-model pid-relation fix in Section 2.2.3). Repository teams configure these mechanisms in their metadata schemas.
 
 ### Related Resource (`related_resource`)
 
@@ -114,7 +112,7 @@ A query-defined dynamic group of records displayed on a dedicated page. Collecti
 
 #### Limitations
 
-- No persistent identity — collections cannot be cited.
+- No immutability — collections are not suitable for citing as a persistent data resource.
 - No curation lifecycle — collection membership is purely query-driven with no approval step.
 - No versioning — the collection's contents at a point in time cannot be frozen or archived.
 
@@ -127,22 +125,21 @@ A query-defined dynamic group of records displayed on a dedicated page. Collecti
 
 ### File-Level Metadata
 
-Invenio supports tagging individual files attached to a record with key–value metadata. These tags are indexed into OpenSearch and are searchable.
+Invenio supports describing individual files attached to a record with key–value metadata, see InvenioRM docs on [Files](https://inveniordm.docs.cern.ch/reference/metadata/#files). The metadata are indexed into OpenSearch and are searchable.
 
 #### Behavior
 
 - Metadata is attached to individual files within a record, not to the record itself.
-- Tags are indexed into OpenSearch alongside the record, making them discoverable in search queries.
+- Metadata are indexed into OpenSearch alongside the record, making them discoverable in search queries.
 
 #### Limitations
 
 - **Flat key–value only.** The upload component does not support hierarchical metadata keys, vocabulary-bound values, or structured nested fields.
-- **Schema is defined outside the record YAML.** Each record type shares the same file-metadata schema regardless of the record-level metadata model.
 - **Default max 100 files per record.** Exceeding this requires configuration changes.
 
 #### Potential Role
 
-File-level metadata may substitute for sub-records in simple cases where the only reason to split a record is to attach structured metadata to individual components. Czech BioImaging is evaluating whether file-level metadata can replace planned child records for their dataset→image hierarchy.
+File-level metadata may substitute for sub-records in simple cases where the only reason to split a record is to attach structured metadata to individual components. 
 
 #### Responsibility
 
@@ -158,11 +155,11 @@ Hierarchical records are **not yet implemented** in CESNET Invenio. This section
 
 ### Motivation
 
-Three of the five NRP domain repositories need hierarchical records to:
+Several NRP domain repositories need hierarchical records to:
 
 - **Share a publishing workflow** — a single publish action for an entire tree of records, rather than publishing each child individually.
 - **Share access control** — access rights defined once on the root and inherited by all children.
-- **Maintain referential integrity** — the parent–child link is system-level metadata, enforced by the platform, not user-editable opaque strings in user metadata.
+- **Maintain referential integrity** — the parent–child link is kept in the system-level metadata, enforced by the platform, not user-editable opaque strings in user metadata.
 - **Reduce curator burden** — without hierarchy, a curator must manually approve and manage each child record independently (painful at scale, e.g., DANTEc's 100+ activities per dataset).
 
 ### Data Model
@@ -181,10 +178,10 @@ child_record:
 
 Key properties of the data model:
 
-- **Parent link is system metadata** — stored outside user-editable metadata fields, settable only at record creation. Later changes to the parent link require a formal request (not self-service).
+- **Parent link is system metadata** — stored outside user-editable metadata fields, set only at record creation. Later changes to the parent link require a formal request (not self-service).
 - **One child = one primary parent** — multiple parents are not supported in the hierarchical implementation. Secondary relationships (beyond the primary parent) must use `related_resource`.
 - **Link direction: child → parent** — the link is stored on the child, not on the parent. This avoids parent-record bloat when a root has many children (the parent holds no list of child IDs).
-- **Each level may have its own metadata schema** — a study (root) and its experiments (children) can use different CCMM schemas.
+- **Each level may have its own metadata schema**.
 
 ### Lifecycle Behavior
 
@@ -206,15 +203,9 @@ Key properties of the data model:
 
 ### Versioning
 
-Changing any child's files or metadata creates a **new version of the entire tree**: a new root version with a new PID, plus new identifiers for all children. The old identifiers remain discoverable.
+Changing any child's files, thus creating a new version of a child record, creates a **new version of the entire tree**: a new root version with a new PID, plus new versions and identifiers for all children. The old identifiers remain discoverable. This behaviour has no workaround as of now, and probably will never have. The implications are obvious a single data edit to one child regenerates PIDs for the entire tree — for trees with many children or frequent updates, this may an issue.
 
-This is a significant problem with no workaround yet. The implications:
-
-- **PID explosion** — a single metadata edit to one child regenerates PIDs for the entire tree. For trees with many children or frequent updates, this may become unmanageable.
-- **Citation stability** — individual children cannot be cited stably across versions unless reference is made to the root's concept DOI.
-- **Granularity trade-off** — splitting a record into many children improves manageability but magnifies the versioning problem.
-
-Version tagging is under consideration: marking root versions with descriptive tags so that it is clear what each version of the tree contains (e.g., "added measurement 2026-06", "corrected instrument metadata").
+**Important:** changes to a record's *metadata* **do not create** a new *version* of the modified record, just a new **revision**. Revisions of records at all levels of the tree can be made at will, they do not trigger any change to the root record or to the whole tree. With new revision of a record, its PID remains the same, the changes are stored in the database, they cannot be accessed through API, only the sequence number of the revision is available in the record's metadata.
 
 ### Curation and Notification
 
