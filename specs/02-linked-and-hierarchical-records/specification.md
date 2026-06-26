@@ -3,8 +3,8 @@
 **Status:** [OPEN]
 **Version:** 2.0
 **Date:** 2026-06-24
-**Discussion:** [hub thread #3](https://github.com/nrp-specialists/specifications/discussions/3)
-**Ideation:** [discussion #2](https://github.com/nrp-specialists/specifications/discussions/2) (migrated from [NRP-CZ #15](https://github.com/orgs/NRP-CZ/discussions/15))
+**Discussion:** [hub thread #3](https://github.com/nrp-specialists/specifications/discussions/3) — DM suggests to start a new discussion focused primarily on commenting the specification
+**Ideation:** [NRP-CZ #15](https://github.com/orgs/NRP-CZ/discussions/15)
 
 ## Summary
 
@@ -46,6 +46,7 @@ record:
 #### Limitations
 
 - **No referential integrity.** Invenio does not enforce that the target of a `related_resource` link exists or remains valid. However, tombstone records typically keep links resolvable after a target is removed.
+- Related resource can be referenced both from the parent record or from the child records. When stored on the parent level, **max. recommended number** of referenced resources = **100**.
 - **Flat structure only.** Items cannot be composed into tuples or structured groups within a single `related_resource` list.
 
 #### Responsibility
@@ -123,7 +124,7 @@ A query-defined dynamic group of records displayed on a dedicated page. Collecti
 | Platform support | Built into Invenio — no new work |
 | Query definition and collection configuration | Repository teams |
 
-### File-Level Metadata
+### File-level Metadata
 
 Invenio supports describing individual files attached to a record with key–value metadata, see InvenioRM docs on [Files](https://inveniordm.docs.cern.ch/reference/metadata/#files). The metadata are indexed into OpenSearch and are searchable.
 
@@ -136,6 +137,7 @@ Invenio supports describing individual files attached to a record with key–val
 
 - **Flat key–value only.** The upload component does not support hierarchical metadata keys, vocabulary-bound values, or structured nested fields.
 - **Default max 100 files per record.** Exceeding this requires configuration changes.
+- **No PID per individual file** (DOI applies only to the whole record); ARK would allow a per-file PID.
 
 #### Potential Role
 
@@ -205,13 +207,7 @@ Key properties of the data model:
 
 Changing any child's files, thus creating a new version of a child record, creates a **new version of the entire tree**: a new root version with a new PID, plus new versions and identifiers for all children. The old identifiers remain discoverable. This behaviour has no workaround as of now, and probably will never have. The implications are obvious a single data edit to one child regenerates PIDs for the entire tree — for trees with many children or frequent updates, this may an issue.
 
-**Important:** changes to a record's *metadata* **do not create** a new *version* of the modified record, just a new **revision**. Revisions of records at all levels of the tree can be made at will, they do not trigger any change to the root record or to the whole tree. With new revision of a record, its PID remains the same, the changes are stored in the database, they cannot be accessed through API, only the sequence number of the revision is available in the record's metadata.
-
-### Curation and Notification
-
-When a child record that participates in multiple relationships (e.g., a child linked via hierarchy to a root and via `related_resource` to another record) is modified, the curator or creator should be notified: "this child is used N×." The curator then decides whether to create a new version of the hierarchy.
-
-The open question is **how far to automate**: full automation is only viable where desired behavior is always the same (e.g., always create a new version on any metadata change). For cases requiring curator judgment, a notification-only approach is more appropriate.
+**Important:** changes to a record's *metadata* **do not create** a new *version* of the modified record, just a new **revision**. Revisions of records at all levels of the tree can be made as needed, they do not trigger any change to the root record or to the whole tree. With a new revision of a record, its PID remains the same, the changes are stored in the database, they cannot be accessed through API, only the sequence number of the revision is available in the record's metadata.
 
 ### Search Architecture
 
@@ -239,26 +235,23 @@ Child metadata fields needed for search and pagination can be **copied** into th
 
 The trade-off is a doubled index size (child data exists both in the child's own index and copied into the root's index).
 
-#### Per-Repository Search Patterns
-
-| Repository | Search Pattern | Approach |
-|---|---|---|
-| **BioSim CZ** | Search experiments by metadata → show only studies (roots) | Composite search index: study record enriched with experiment metadata. Open question: whether standalone experiments should also be indexed individually. |
-| **Czech BioImaging** | Search across processing steps → return roots or activities | To be specified in consultation. |
-| **DANTEc** | Vertical search (one material, all methods) + horizontal search (one method across materials) | Share use cases, then decide approach. |
+### Download and bulk operations
+- **No server-side generation of a composite ZIP, never from the GUI/browser** (performance; cannot be parallelised).
+- Bulk download via the **command-line client (`nrp-cmd`)** – the user searches for records by relation (root ID / Related Resource) and downloads them in batch.
+- A possible **shortcut in the CLI client** per specific repository; this limitation needs to be **documented** so the groups account for it from the start.
+- **Bulk actions over linked records** (bulk operations over a set of linked/child records) mentioned as another possible path – to be specified.
 
 ### Implementation Plan
 
 | Component | Owner | Timeline | Notes |
 |---|---|---|---|
+| Self-reference pid-relation fix | CESNET | Aug 2026 | Prerequisite for some use cases. |
 | `parent_in_hierarchy` system field (backend) | CESNET | Q4 2026 | Core Invenio feature; creates the child→parent link as non-user-editable system metadata. |
 | Children-tab UI | CESNET | Q4 2026 | UI tab on a parent record listing its children, with navigation to each child. Part of core. |
 | Root publish cascades to children | CESNET | Q4 2026 | Publish action on root transitions all children. |
 | Access-right inheritance from root | CESNET | Q4 2026 | Children inherit the root's access policy. |
 | Composite search index tooling | CESNET | TBD | Candidate for core; maps root + children into a single OpenSearch index document. |
-| Self-reference pid-relation fix | CESNET | Aug 2026 | Prerequisite for some hierarchical use cases. |
-| Repository-specific metadata schemas | Repository teams | During consultation | Each repo defines schemas for root and child records. |
-| Alternative PIDs (Handle / ePIC / ARK) | Repository teams / community | TBD | Not a CESNET priority; community must write or adapt PID providers. |
+| Alternative PIDs (Handle / ePIC / ARK) | Repository teams / community | TBD | Communities develop or adapt PID providers. |
 | Domain-specific GUI customizations | Repository teams | TBD | Custom UI beyond the core children tab. |
 | File-level metadata schemas | Repository teams | TBD | Define per-record-type file-metadata structure. |
 | Curation and notification workflows | Repository teams (+ CESNET advisory) | TBD | Depends on automation-vs-manual decisions per repository. |
@@ -281,49 +274,29 @@ CESNET will:
 | **ARK** | Implemented in Central/West Africa consortium | Medium | Community | No external server needed; repository itself serves as resolver. Supports hierarchical semantics and per-file PIDs. Multiple institutions must share one NAAN prefix. |
 | **Handle** | No Invenio support in current version | High | Repository teams / community | Requires a Handle server. Maintained Python library exists but no Invenio bridge. Old B2Share implementation (~6 years old) is incompatible with current Invenio. |
 | **ePIC** | No Invenio support in current version | High | Repository teams / community | Based on Handle infrastructure. B2SHARE v3 / B2INST v3 used pyhandle v1 on a different Invenio version; not reusable without work. Price/governance through NTK with Göttingen. |
-| **External accession ID** | Via secondary ID or custom PID provider | Medium–high | Repository teams | BioSim CZ will receive IDs from a European catalog service. |
-
-## Repository-Specific Architectures
-
-Each repository uses a different combination of the mechanisms described above, based on its domain requirements for record lifecycle, search patterns, and curator workflow.
-
-| Repository | Architecture | Mechanisms | Notes |
-|---|---|---|---|
-| **BioSim CZ** | Pure hierarchical | `parent_in_hierarchy` | Study = root; experiments = children (3 types, each with own schema). Shared publishing, versioning, and access rights. Simplest match for the hierarchical model. |
-| **Czech BioImaging** | Hybrid | `parent_in_hierarchy` (dataset → activity, `isPartOf`) + `pid-relation` (activity graph, `isFollowedBy`) + `related_resource` (multiple parents) | Tree structure rather than graph-with-join; the join variant was evaluated and rejected. File-level metadata may reduce the need for hierarchy in some cases. |
-| **Fyzika (Physics)** | Linked records | `related_resource`, collections | Independent lifecycles; root record (DOI, ~10 schemas) + aggregated datasets + individual measurements. Children added daily (e.g., FRAM every night); with >~100 children, the link goes from child upward. |
-| **DANTEc** | Hybrid (all mechanisms) | `related_resource` + `pid-relation` + `parent_in_hierarchy` + collections | Fair Digital Object as root (CCMM, DOI, RO-Crate); activities as children (ePIC, shared metadata model). Heterogeneous community (nanofabrication, engineering, logistics) needs maximum flexibility. Pure linked records would lose referential integrity. |
-| **Chemical Biology** | TBD | TBD | To be analysed; potentially 10k+ records. |
+| **Internal community identifiers** (BioSimCZ) | Customizing the Invenio PID provider | Medium | Rapository teams | A URL with a prefix (`MD_0001`) resolves to the landing page; the address bar keeps the internal Invenio ID. |
+| **External accession ID** (BioSimCZ) | Via secondary ID or custom PID provider | Medium–high | Repository teams | BioSim CZ will receive IDs from a European catalog service. |
 
 ## Migration Path
 
-- **Linked → hierarchical** conversion is technically possible with migration work.
-- During the interim period before hierarchy is available, repositories should use linked records (`related_resource`). The curator manually approves and manages each child individually — painful at scale, but functional.
-- Once hierarchical records are implemented, repositories can bulk-convert their existing linked-record trees into the hierarchical model. The conversion script must translate user-metadata `related_resource` links into system-level `parent_in_hierarchy` links.
-
-## Risk Register
-
-| Issue | Severity | Mitigation |
-|---|---|---|
-| Versioning creates new PIDs for all children on any change | 🔴 high | Needs deeper design; currently no workaround. Version tagging may help with traceability but does not solve the PID-explosion problem. |
-| File-level metadata could replace hierarchy for some cases, reducing the urgency of implementation | 🟡 medium | Reduces complexity for simple use cases. Czech BioImaging already reconsidering whether hierarchy is needed. |
-| ePIC / Handle has zero Invenio support | 🟡 medium | Community must write or adapt PID providers; not a CESNET priority. May delay child-record minting with non-DOI PIDs. |
-| DANTEc heterogeneity — unknown data shapes in a single repository | 🟡 medium | Start with hybrid approach; add mechanisms as concrete use cases emerge from the community. |
-| Lazy initialization of self-referencing pid-relation | 🟢 low | Performance penalty on first lookup; acceptable for DANTEc's ~100 activities. Fix planned (Aug 2026). |
-| Upload component cannot handle hierarchical file metadata in GUI | 🟢 low | Workaround: upload via API; extract metadata via background processor. |
+- **Linked → hierarchical** conversion is technically possible with migration work. You **cannot switch "on the fly"** from pure Related Resource to a strict hierarchy managed by Invenio – a conversion is required.
+- During the interim period before hierarchy is available, repositories can use linked records. The curator manually approves and manages each child individually — painful at scale, but functional.
+- Once hierarchical records are implemented, repositories can bulk-convert their existing linked-record trees into the hierarchical model.
 
 ## Open Questions
 
-- [ ] Should "hierarchical records" be renamed to "compound records" (main-record / sub-record / record)?
-- [ ] Can child records have independent access rights? DANTEc and Czech BioImaging may need exceptions to the strict inheritance rule.
-- [ ] How to handle root-change propagation to children without overwhelming curators?
-- [ ] How far should versioning and curation be automated vs. manual? Full automation is only viable where behavior is always the same.
+- [ ] How does a composite index approcach achieved through `pid-relation` go along with hierarchical records?
+- [ ] Can child records in a hierarchy have independent access rights? DANTEc and Czech BioImaging may need exceptions to the strict inheritance rule.
 - [ ] Is ePIC minting via pyhandle viable in current Invenio, or is a new bridge needed from scratch?
-- [ ] Are hierarchical records truly necessary, or could file-level metadata tagging + linked records suffice for some use cases?
-- [ ] For BioSim: should standalone experiments still be indexed individually, or only via the composite study record?
-- [ ] Must a parent and its children share the same metadata schema?
 - [ ] Should bulk download of children be supported server-side, or is client-side via `nrp-cmd` CLI sufficient?
 - [ ] What is the DOI versioning strategy for dynamic datasets (snapshots / canonical DOI / date in citation)?
+- [ ] Should "hierarchical records" be renamed to "compound records" (main-record / sub-record / record)?
+
+### Curation and Notification in LINKED records
+- **Notifying the curator/creator of a change to a child** that is involved in multiple relations – warn that the child is used *N×* and let them decide whether to create a new version.
+- The question is **how far to automate the versioning and curation** – automation only makes sense where the behaviour is always the same (otherwise an override is needed and database consistency cannot be guaranteed).
+- **Re-framing the whole problem as "tagging + graph structure"** (David) – a new angle in the closing discussion.
+  - **Version tagging** – marking versions with tags so it is clear what each version contains
 
 ## Changelog
 
